@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wikinews IT Search</title>
+<style>
+  :root { --fg:#1f2328; --muted:#656d76; --bg:#fff; --accent:#0b57d0; --mark:#fff3a3; --border:#d0d7de; }
+  @media (prefers-color-scheme: dark) { :root { --fg:#e6edf3; --muted:#9198a1; --bg:#0d1117; --accent:#58a6ff; --mark:#5c4a00; --border:#30363d; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.5 system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  #stats { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
+  form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #q { flex: 1 1 100%; padding: 10px 12px; font-size: 1.05rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  label, select, input[type=date] { font-size: .9rem; color: var(--muted); }
+  select, input[type=date] { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+  button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-size: 1rem; cursor: pointer; }
+  .help { color: var(--muted); font-size: .8rem; margin: 6px 0 16px; }
+  #info { color: var(--muted); font-size: .9rem; margin: 12px 0; }
+  .r { margin: 0 0 20px; }
+  .r a { color: var(--accent); font-size: 1.1rem; text-decoration: none; }
+  .r a:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: .8rem; }
+  .snip { margin: 4px 0 0; overflow-wrap: anywhere; }
+  mark { background: var(--mark); color: inherit; }
+  #pager { display: flex; gap: 8px; justify-content: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Wikinews IT Search</h1>
+  <div id="stats"></div>
+  <form id="f">
+    <input id="q" name="q" type="search" placeholder="Cerca nelle notizie… es. elezioni &quot;presidente della repubblica&quot; -sondaggi" autofocus aria-label="Query">
+    <label>modello <select id="model"><option value="italian">BM25 + analyzer italiano</option><option value="plain">BM25 senza stemming</option><option value="lmdirichlet">LM Dirichlet</option></select></label>
+    <label>ordina <select id="sort"><option value="relevance">rilevanza</option><option value="date">data</option></select></label>
+    <label>dal <input id="from" type="date"></label>
+    <label>al <input id="to" type="date"></label>
+    <button>Cerca</button>
+  </form>
+  <div class="help">Parole in AND · <code>"frase esatta"</code> · <code>-escludi</code> · <code>a | b</code> · prefisso <code>calc*</code></div>
+  <div id="info" aria-live="polite"></div>
+  <div id="results"></div>
+  <div id="pager"></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let page = 1;
+
+fetch('/api/stats').then(r => r.json()).then(s => {
+  $('stats').textContent = `${s.documents.toLocaleString('it')} notizie indicizzate (${s.first_date} → ${s.last_date}) · Elasticsearch / Lucene ${s.lucene_version}`;
+});
+
+function readUrl() {
+  const p = new URLSearchParams(location.search);
+  $('q').value = p.get('q') || '';
+  $('model').value = p.get('model') || 'italian';
+  $('sort').value = p.get('sort') || 'relevance';
+  $('from').value = p.get('date_from') || '';
+  $('to').value = p.get('date_to') || '';
+  page = +p.get('page') || 1;
+}
+
+function params() {
+  const p = new URLSearchParams({ q: $('q').value, page, model: $('model').value, sort: $('sort').value });
+  if ($('from').value) p.set('date_from', $('from').value);
+  if ($('to').value) p.set('date_to', $('to').value);
+  return p;
+}
+
+async function run(push = true) {
+  if (!$('q').value.trim()) { $('results').replaceChildren(); $('info').textContent = ''; $('pager').replaceChildren(); return; }
+  const p = params();
+  if (push) history.pushState(null, '', '?' + p);
+  const r = await fetch('/api/search?' + p);
+  const data = await r.json();
+  if (!r.ok) { $('info').textContent = 'Errore: ' + JSON.stringify(data.detail); return; }
+  $('info').textContent = `${data.total.toLocaleString('it')} risultati in ${data.ms} ms`;
+  $('results').replaceChildren(...data.results.map(d => {
+    const div = document.createElement('div'); div.className = 'r';
+    const a = document.createElement('a'); a.href = d.url; a.textContent = d.title; a.target = '_blank'; a.rel = 'noopener';
+    const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${d.date || 's.d.'}` + (d.score != null ? ` · score ${d.score}` : '');
+    const snip = document.createElement('p'); snip.className = 'snip'; snip.innerHTML = d.snippet; // ES highlighter with encoder=html: text escaped, only <mark> added
+    div.append(a, meta, snip); return div;
+  }));
+  const pages = Math.ceil(data.total / 10), pager = [];
+  const btn = (label, n) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { page = n; run(); scrollTo(0, 0); }; return b; };
+  if (page > 1) pager.push(btn('← Precedente', page - 1));
+  if (page < pages) pager.push(btn('Successiva →', page + 1));
+  $('pager').replaceChildren(...pager);
+}
+
+$('f').onsubmit = e => { e.preventDefault(); page = 1; run(); };
+addEventListener('popstate', () => { readUrl(); run(false); });
+readUrl(); run(false);
+</script>
+</body>
+</html>
