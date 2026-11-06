@@ -4,43 +4,82 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wikinews IT Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap">
 <style>
-  :root { --fg:#1f2328; --muted:#656d76; --bg:#fff; --accent:#0b57d0; --mark:#fff3a3; --border:#d0d7de; }
-  @media (prefers-color-scheme: dark) { :root { --fg:#e6edf3; --muted:#9198a1; --bg:#0d1117; --accent:#58a6ff; --mark:#5c4a00; --border:#30363d; } }
+  /* Look & feel di iadmin-core-frontend: InstitutionalTokens (chiaro) / AdminDashTokens (scuro) */
+  :root {
+    --primary:#1E4D7B; --primary-light:#EFF6FF; --teal:#0D7D8A; --teal-light:#E6F5F7;
+    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F1F5F9; --border:#E2E8F0;
+    --text:#0F172A; --text-2:#475569; --muted:#64748B; --on-primary:#FFFFFF; --header:#15395B; --header-text:#FFFFFF;
+    --mark-bg:#FFFBEB; --mark-border:#FDE68A; --danger:#B91C1C;
+    --shadow:0 3px 10px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.02); --focus:#1E4D7B;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --primary:#38BDF8; --primary-light:#13283F; --teal:#14B8A6; --teal-light:#0B1A2B;
+    --bg:#0A1628; --surface:#0F2137; --surface-2:#0B1A2B; --border:#1E3A5F;
+    --text:#E5E7EB; --text-2:#94A3B8; --muted:#94A3B8; --on-primary:#001E2B; --header:#0F2137; --header-text:#E5E7EB;
+    --mark-bg:#3B2F0B; --mark-border:#B45309; --danger:#EF4444;
+    --shadow:0 3px 10px rgba(0,0,0,.35); --focus:#38BDF8;
+  } }
   * { box-sizing: border-box; }
-  body { margin:0; font:16px/1.5 system-ui, sans-serif; color:var(--fg); background:var(--bg); }
-  main { max-width: 820px; margin: 0 auto; padding: 24px 16px; }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  #stats { color: var(--muted); font-size: .9rem; margin-bottom: 16px; }
-  form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  #q { flex: 1 1 100%; padding: 10px 12px; font-size: 1.05rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
-  label, select, input[type=date] { font-size: .9rem; color: var(--muted); }
-  select, input[type=date] { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
-  button { padding: 8px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font-size: 1rem; cursor: pointer; }
-  .help { color: var(--muted); font-size: .8rem; margin: 6px 0 16px; }
-  #info { color: var(--muted); font-size: .9rem; margin: 12px 0; }
-  .r { margin: 0 0 20px; }
-  .r a { color: var(--accent); font-size: 1.1rem; text-decoration: none; }
-  .r a:hover { text-decoration: underline; }
-  .meta { color: var(--muted); font-size: .8rem; }
-  .snip { margin: 4px 0 0; overflow-wrap: anywhere; }
-  mark { background: var(--mark); color: inherit; }
-  #pager { display: flex; gap: 8px; justify-content: center; }
+  body { margin:0; font:15px/1.5 Roboto, system-ui, sans-serif; color:var(--text); background:var(--bg); }
+  header { background:var(--header); color:var(--header-text); border-bottom:1px solid var(--border); }
+  .bar { max-width:960px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .logo { width:36px; height:36px; border-radius:8px; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; font-weight:700; font-size:18px; flex:none; }
+  h1 { font-size:18px; font-weight:500; margin:0; letter-spacing:.2px; }
+  #stats { font-size:13px; opacity:.85; margin-left:auto; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); }
+  form.card { padding:16px; display:grid; gap:12px; }
+  .searchrow { display:flex; gap:8px; }
+  #q { flex:1; min-width:0; padding:12px 14px; font:inherit; font-size:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); }
+  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
+  .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+  .field { display:grid; gap:4px; font-size:12px; font-weight:500; color:var(--text-2); }
+  select, input[type=date] { font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); }
+  button { font:inherit; font-weight:600; padding:10px 20px; border:0; border-radius:8px; background:var(--primary); color:var(--on-primary); cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  button.secondary { background:transparent; color:var(--primary); border:1px solid var(--border); }
+  .help { font-size:12px; color:var(--muted); }
+  code { font-family:'JetBrains Mono', monospace; font-size:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
+  #info { color:var(--text-2); font-size:13px; margin:20px 2px 10px; }
+  #info.error { color:var(--danger); }
+  #results { display:grid; gap:12px; }
+  .r { padding:16px 18px; }
+  .r a { color:var(--primary); font-size:17px; font-weight:500; text-decoration:none; }
+  .r a:hover { text-decoration:underline; }
+  .meta { display:flex; gap:6px; margin:6px 0 8px; flex-wrap:wrap; }
+  .chip { font-size:12px; font-weight:500; padding:2px 10px; border-radius:999px; border:1px solid var(--border); background:var(--primary-light); color:var(--primary); }
+  .chip.teal { background:var(--teal-light); color:var(--teal); }
+  .snip { margin:0; color:var(--text-2); font-size:14px; overflow-wrap:anywhere; }
+  mark { background:var(--mark-bg); color:var(--text); box-shadow:inset 0 -2px 0 var(--mark-border); border-radius:2px; padding:0 1px; }
+  #pager { display:flex; gap:8px; justify-content:center; margin-top:20px; }
+  @media (max-width:600px) { .searchrow { flex-direction:column; } #stats { margin-left:0; width:100%; } }
 </style>
 </head>
 <body>
+<header>
+  <div class="bar">
+    <div class="logo" aria-hidden="true">W</div>
+    <h1>Wikinews IT Search</h1>
+    <div id="stats"></div>
+  </div>
+</header>
 <main>
-  <h1>Wikinews IT Search</h1>
-  <div id="stats"></div>
-  <form id="f">
-    <input id="q" name="q" type="search" placeholder="Cerca nelle notizie… es. elezioni &quot;presidente della repubblica&quot; -sondaggi" autofocus aria-label="Query">
-    <label>modello <select id="model"><option value="italian">BM25 + analyzer italiano</option><option value="plain">BM25 senza stemming</option><option value="lmdirichlet">LM Dirichlet</option></select></label>
-    <label>ordina <select id="sort"><option value="relevance">rilevanza</option><option value="date">data</option></select></label>
-    <label>dal <input id="from" type="date"></label>
-    <label>al <input id="to" type="date"></label>
-    <button>Cerca</button>
+  <form id="f" class="card" role="search">
+    <div class="searchrow">
+      <input id="q" name="q" type="search" placeholder="Cerca nelle notizie… es. elezioni &quot;presidente della repubblica&quot; -sondaggi" autofocus aria-label="Query">
+      <button>Cerca</button>
+    </div>
+    <div class="filters">
+      <label class="field">Modello di ranking <select id="model"><option value="italian">BM25 + analyzer italiano</option><option value="plain">BM25 senza stemming</option><option value="lmdirichlet">LM Dirichlet</option></select></label>
+      <label class="field">Ordina per <select id="sort"><option value="relevance">Rilevanza</option><option value="date">Data</option></select></label>
+      <label class="field">Dal <input id="from" type="date"></label>
+      <label class="field">Al <input id="to" type="date"></label>
+    </div>
+    <div class="help">Parole in AND · <code>"frase esatta"</code> · <code>-escludi</code> · <code>a | b</code> · prefisso <code>calc*</code></div>
   </form>
-  <div class="help">Parole in AND · <code>"frase esatta"</code> · <code>-escludi</code> · <code>a | b</code> · prefisso <code>calc*</code></div>
   <div id="info" aria-live="polite"></div>
   <div id="results"></div>
   <div id="pager"></div>
@@ -48,9 +87,10 @@
 <script>
 const $ = id => document.getElementById(id);
 let page = 1;
+const itDate = d => d ? d.split('-').reverse().join('/') : '—';  // formato istituzionale dd/MM/yyyy
 
 fetch('/api/stats').then(r => r.json()).then(s => {
-  $('stats').textContent = `${s.documents.toLocaleString('it')} notizie indicizzate (${s.first_date} → ${s.last_date}) · Elasticsearch / Lucene ${s.lucene_version}`;
+  $('stats').textContent = `${s.documents.toLocaleString('it')} notizie · ${itDate(s.first_date)} – ${itDate(s.last_date)} · Lucene ${s.lucene_version}`;
 });
 
 function readUrl() {
@@ -76,17 +116,21 @@ async function run(push = true) {
   if (push) history.pushState(null, '', '?' + p);
   const r = await fetch('/api/search?' + p);
   const data = await r.json();
-  if (!r.ok) { $('info').textContent = 'Errore: ' + JSON.stringify(data.detail); return; }
+  $('info').className = r.ok ? '' : 'error';
+  if (!r.ok) { $('info').textContent = 'Errore: ' + JSON.stringify(data.detail); $('results').replaceChildren(); return; }
   $('info').textContent = `${data.total.toLocaleString('it')} risultati in ${data.ms} ms`;
   $('results').replaceChildren(...data.results.map(d => {
-    const div = document.createElement('div'); div.className = 'r';
+    const div = document.createElement('article'); div.className = 'r card';
     const a = document.createElement('a'); a.href = d.url; a.textContent = d.title; a.target = '_blank'; a.rel = 'noopener';
-    const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${d.date || 's.d.'}` + (d.score != null ? ` · score ${d.score}` : '');
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const chip = (t, cls) => { const c = document.createElement('span'); c.className = 'chip ' + cls; c.textContent = t; return c; };
+    meta.append(chip(itDate(d.date), ''));
+    if (d.score != null) meta.append(chip(`score ${d.score}`, 'teal'));
     const snip = document.createElement('p'); snip.className = 'snip'; snip.innerHTML = d.snippet; // ES highlighter with encoder=html: text escaped, only <mark> added
     div.append(a, meta, snip); return div;
   }));
   const pages = Math.ceil(data.total / 10), pager = [];
-  const btn = (label, n) => { const b = document.createElement('button'); b.textContent = label; b.onclick = () => { page = n; run(); scrollTo(0, 0); }; return b; };
+  const btn = (label, n) => { const b = document.createElement('button'); b.className = 'secondary'; b.textContent = label; b.onclick = () => { page = n; run(); scrollTo(0, 0); }; return b; };
   if (page > 1) pager.push(btn('← Precedente', page - 1));
   if (page < pages) pager.push(btn('Successiva →', page + 1));
   $('pager').replaceChildren(...pager);

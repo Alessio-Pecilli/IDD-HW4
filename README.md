@@ -4,6 +4,8 @@ Sistema di ricerca full-text, con interfaccia web, sulle notizie di [it.wikinews
 contenute nel dump Wikimedia Enterprise
 [`itwikinews-NS0-20250320-ENTERPRISE-HTML.json.tar.gz`](https://dumps.wikimedia.org/other/enterprise_html/runs/20250320/itwikinews-NS0-20250320-ENTERPRISE-HTML.json.tar.gz).
 
+**Autori:** Alessio Pecilli, Matteo Cerretani, Alessio Natale Scarpa (corso di Ingegneria dei Dati, Homework 4).
+
 Il motore è **Elasticsearch 9.5** (basato su **Apache Lucene 10**). Indicizzazione, interfaccia web e valutazione sono scritte in Python.
 
 ## Architettura
