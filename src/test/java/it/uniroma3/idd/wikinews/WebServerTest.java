@@ -63,7 +63,16 @@ class WebServerTest {
         HttpResponse<String> r = get("/");
         assertEquals(200, r.statusCode());
         assertTrue(r.body().contains("Wikinews IT Search"));
+        assertTrue(r.body().contains("<link rel=\"stylesheet\" href=\"/style.css\">"));
         assertEquals(404, get("/nope").statusCode());
+    }
+
+    @Test
+    void styleCss() throws Exception {
+        HttpResponse<String> r = get("/style.css");
+        assertEquals(200, r.statusCode());
+        assertTrue(r.headers().firstValue("Content-Type").orElse("").contains("text/css"));
+        assertTrue(r.body().contains("--primary: #1E4D7B"));
     }
 
     @Test

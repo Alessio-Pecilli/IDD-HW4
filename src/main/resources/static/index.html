@@ -6,59 +6,7 @@
 <title>Wikinews IT Search</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400&display=swap">
-<style>
-  /* Look & feel di iadmin-core-frontend: InstitutionalTokens (chiaro) / AdminDashTokens (scuro) */
-  :root {
-    --primary:#1E4D7B; --primary-light:#EFF6FF; --teal:#0D7D8A; --teal-light:#E6F5F7;
-    --bg:#F8FAFC; --surface:#FFFFFF; --surface-2:#F1F5F9; --border:#E2E8F0;
-    --text:#0F172A; --text-2:#475569; --muted:#64748B; --on-primary:#FFFFFF; --header:#15395B; --header-text:#FFFFFF;
-    --mark-bg:#FFFBEB; --mark-border:#FDE68A; --danger:#B91C1C;
-    --shadow:0 3px 10px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.02); --focus:#1E4D7B;
-  }
-  @media (prefers-color-scheme: dark) { :root {
-    --primary:#38BDF8; --primary-light:#13283F; --teal:#14B8A6; --teal-light:#0B1A2B;
-    --bg:#0A1628; --surface:#0F2137; --surface-2:#0B1A2B; --border:#1E3A5F;
-    --text:#E5E7EB; --text-2:#94A3B8; --muted:#94A3B8; --on-primary:#001E2B; --header:#0F2137; --header-text:#E5E7EB;
-    --mark-bg:#3B2F0B; --mark-border:#B45309; --danger:#EF4444;
-    --shadow:0 3px 10px rgba(0,0,0,.35); --focus:#38BDF8;
-  } }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 Roboto, system-ui, sans-serif; color:var(--text); background:var(--bg); }
-  header { background:var(--header); color:var(--header-text); border-bottom:1px solid var(--border); }
-  .bar { max-width:960px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  .logo { width:36px; height:36px; border-radius:8px; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; font-weight:700; font-size:18px; flex:none; }
-  h1 { font-size:18px; font-weight:500; margin:0; letter-spacing:.2px; }
-  #stats { font-size:13px; opacity:.85; margin-left:auto; }
-  main { max-width:960px; margin:0 auto; padding:24px 16px 48px; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); }
-  form.card { padding:16px; display:grid; gap:12px; }
-  .searchrow { display:flex; gap:8px; }
-  #q { flex:1; min-width:0; padding:12px 14px; font:inherit; font-size:16px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); }
-  input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--focus); outline-offset:1px; }
-  .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
-  .field { display:grid; gap:4px; font-size:12px; font-weight:500; color:var(--text-2); }
-  select, input[type=date] { font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); }
-  button { font:inherit; font-weight:600; padding:10px 20px; border:0; border-radius:8px; background:var(--primary); color:var(--on-primary); cursor:pointer; }
-  button:hover { filter:brightness(1.08); }
-  button.secondary { background:transparent; color:var(--primary); border:1px solid var(--border); }
-  .help { font-size:12px; color:var(--muted); }
-  code { font-family:'JetBrains Mono', monospace; font-size:12px; background:var(--surface-2); border:1px solid var(--border); border-radius:4px; padding:1px 5px; }
-  #info { color:var(--text-2); font-size:13px; margin:20px 2px 10px; }
-  #info.error { color:var(--danger); }
-  #results { display:grid; gap:12px; }
-  .r { padding:16px 18px; }
-  .r a { color:var(--primary); font-size:17px; font-weight:500; text-decoration:none; }
-  .r a:hover { text-decoration:underline; }
-  .meta { display:flex; gap:6px; margin:6px 0 8px; flex-wrap:wrap; }
-  .chip { font-size:12px; font-weight:500; padding:2px 10px; border-radius:999px; border:1px solid var(--border); background:var(--primary-light); color:var(--primary); }
-  .chip.teal { background:var(--teal-light); color:var(--teal); }
-  .chip.cat { background:var(--surface-2); color:var(--text-2); cursor:pointer; text-decoration:none; transition:all .15s ease; }
-  .chip.cat:hover { background:var(--primary-light); color:var(--primary); border-color:var(--primary); }
-  .snip { margin:0; color:var(--text-2); font-size:14px; overflow-wrap:anywhere; }
-  mark { background:var(--mark-bg); color:var(--text); box-shadow:inset 0 -2px 0 var(--mark-border); border-radius:2px; padding:0 1px; }
-  #pager { display:flex; gap:8px; justify-content:center; margin-top:20px; }
-  @media (max-width:600px) { .searchrow { flex-direction:column; } #stats { margin-left:0; width:100%; } }
-</style>
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>

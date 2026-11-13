@@ -49,10 +49,17 @@ public final class WebServer {
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.createContext("/", ex -> handle(ex, () -> {
-            if (!ex.getRequestURI().getPath().equals("/")) return reply(ex, 404, "text/plain", "not found".getBytes(UTF_8));
-            try (InputStream page = WebServer.class.getResourceAsStream("/static/index.html")) {
-                return reply(ex, 200, "text/html; charset=utf-8", page.readAllBytes());
+            String path = ex.getRequestURI().getPath();
+            if (path.equals("/")) {
+                try (InputStream page = WebServer.class.getResourceAsStream("/static/index.html")) {
+                    return reply(ex, 200, "text/html; charset=utf-8", page.readAllBytes());
+                }
+            } else if (path.equals("/style.css")) {
+                try (InputStream css = WebServer.class.getResourceAsStream("/static/style.css")) {
+                    return reply(ex, 200, "text/css; charset=utf-8", css.readAllBytes());
+                }
             }
+            return reply(ex, 404, "text/plain", "not found".getBytes(UTF_8));
         }));
         server.createContext("/api/search", ex -> handle(ex, () -> {
             Map<String, String> p = params(ex.getRequestURI().getRawQuery());
