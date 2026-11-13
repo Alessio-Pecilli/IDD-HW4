@@ -22,7 +22,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 
-/** End-to-end tests over real HTTP. */
+/**
+ * Test end-to-end sul server HTTP reale (localhost).
+ * Valida il rendering della SPA, le API REST JSON, le risposte HTTP 422 a input malformati
+ * e la protezione da attacchi di SQL/XSS/Query injection.
+ */
 class WebServerTest {
 
     @TempDir

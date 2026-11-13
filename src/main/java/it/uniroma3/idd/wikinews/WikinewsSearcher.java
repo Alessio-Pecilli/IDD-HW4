@@ -36,23 +36,37 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 
-/** Query parsing, ranking (BM25 or LM Dirichlet), date filter/sort, pagination and snippets. */
+/**
+ * Facade del motore di ricerca: parsing delle query, ranking (BM25 o LM Dirichlet),
+ * filtri temporali, ordinamento, paginazione ed evidenziazione dei passaggi (snippet).
+ *
+ * Pattern applicati:
+ * - Facade (GoF): offre un'interfaccia semplice e unificata verso il sottosistema Lucene
+ *   (IndexSearcher, UnifiedHighlighter, DirectoryReader, SimpleQueryParser).
+ * - Strategy (GoF): consente l'intercambiabilità a runtime dell'algoritmo di ranking e del modello linguistico (BM25 vs LM Dirichlet, Italian vs Plain).
+ * - Controller (GRASP): riceve le richieste di ricerca dagli endpoint HTTP e coordina l'interrogazione dell'indice.
+ * - Information Expert (GRASP): incapsula la conoscenza della struttura dei campi indicizzati e delle impostazioni di boosting e scoring.
+ */
 public final class WikinewsSearcher implements Closeable {
 
+    /** Modelli di ranking e analisi linguistica selezionabili. */
     public enum Model { italian, plain, lmdirichlet }
 
+    /** Singolo risultato di ricerca (Hit) arricchito con snippet e metadati. */
     public record Hit(String id, String title, String url, String date, Float score, String snippet) {}
 
+    /** Risultato aggregato restituito dalla ricerca (conteggio totale, hit della pagina corrente e latenza). */
     public record Result(String query, long total, List<Hit> results, double ms) {}
 
+    /** Statistiche descrittive dell'indice Lucene. */
     public record Stats(int documents, String first_date, String last_date, String lucene_version) {}
 
-    /** Same operators as Elasticsearch's simple_query_string; fuzzy/near/escape disabled. */
+    /** Operatori sintattici abilitati nel SimpleQueryParser (equivalenti a simple_query_string di Elasticsearch). */
     static final int FLAGS = SimpleQueryParser.AND_OPERATOR | SimpleQueryParser.OR_OPERATOR
             | SimpleQueryParser.NOT_OPERATOR | SimpleQueryParser.PHRASE_OPERATOR | SimpleQueryParser.PREFIX_OPERATOR
             | SimpleQueryParser.PRECEDENCE_OPERATORS | SimpleQueryParser.WHITESPACE_OPERATOR;
 
-    // reverse=true flips the missing-value order too: STRING_FIRST puts undated articles last
+    // reverse=true inverte anche l'ordine dei valori mancanti: STRING_FIRST colloca gli articoli privi di data in fondo
     private static final Sort BY_DATE;
     static {
         SortedSetSortField date = new SortedSetSortField("date", true);
@@ -68,15 +82,18 @@ public final class WikinewsSearcher implements Closeable {
 
     public WikinewsSearcher(Path indexDir) throws IOException {
         reader = DirectoryReader.open(FSDirectory.open(indexDir));
-        bm25 = new IndexSearcher(reader); // BM25Similarity is Lucene's default
+        bm25 = new IndexSearcher(reader); // BM25Similarity è la similarità di default in Lucene
         lm = new IndexSearcher(reader);
-        lm.setSimilarity(new LMDirichletSimilarity(2000f)); // same norms as BM25: no reindexing needed
+        lm.setSimilarity(new LMDirichletSimilarity(2000f)); // condivide le stesse lunghezze documento di BM25, non richiede reindicizzazione
         highlighter = UnifiedHighlighter.builder(bm25, analyzer)
-                .withFormatter(new DefaultPassageFormatter("<mark>", "</mark>", " … ", true)) // true = HTML-escape text
+                .withFormatter(new DefaultPassageFormatter("<mark>", "</mark>", " … ", true)) // true = escape automatico HTML del testo
                 .build();
     }
 
-    /** User text -> Lucene query on title (boosted) and body, words ANDed, optional date range filter. */
+    /**
+     * Costruisce la query Lucene combinando i campi titolo (con boost) e corpo,
+     * unendo i token con operatore AND (Occur.MUST) ed eventuale filtro a intervallo di date.
+     */
     public Query buildQuery(String text, Model model, float titleBoost, String dateFrom, String dateTo) {
         String suffix = model == Model.plain ? "_plain" : "";
         SimpleQueryParser parser = new SimpleQueryParser(analyzer,
@@ -86,10 +103,13 @@ public final class WikinewsSearcher implements Closeable {
         if (dateFrom == null && dateTo == null) return query;
         return new BooleanQuery.Builder()
                 .add(query, Occur.MUST)
-                .add(TermRangeQuery.newStringRange("date", dateFrom, dateTo, true, true), Occur.FILTER) // no effect on score
+                .add(TermRangeQuery.newStringRange("date", dateFrom, dateTo, true, true), Occur.FILTER) // Clausola FILTER: non incide sullo score
                 .build();
     }
 
+    /**
+     * Esegue la ricerca con paginazione, calcolo dello score, estrazione degli snippet ed eventuale ordinamento per data.
+     */
     public Result search(String text, int page, int size, Model model, boolean sortByDate,
                          String dateFrom, String dateTo, float titleBoost) throws IOException {
         long t0 = System.nanoTime();
@@ -112,7 +132,9 @@ public final class WikinewsSearcher implements Closeable {
         return new Result(text, searcher.count(query), results, Math.round((System.nanoTime() - t0) / 1e5) / 10.0);
     }
 
-    /** Top-k document ids and categories, no snippets: used by the evaluation. */
+    /**
+     * Restituisce i primi k documenti (id e categorie) senza snippet: metodo ottimizzato per la valutazione sperimentale.
+     */
     public List<Document> topDocuments(String text, Model model, float titleBoost, int k) throws IOException {
         IndexSearcher searcher = model == Model.lmdirichlet ? lm : bm25;
         StoredFields stored = searcher.storedFields();
@@ -131,6 +153,9 @@ public final class WikinewsSearcher implements Closeable {
         return reader;
     }
 
+    /**
+     * Raccoglie le statistiche descrittive dell'indice (conteggio documenti, data minima e massima, versione Lucene).
+     */
     public Stats stats() throws IOException {
         Terms dates = MultiTerms.getTerms(reader, "date");
         BytesRef first = dates == null ? null : dates.getMin();
@@ -139,7 +164,10 @@ public final class WikinewsSearcher implements Closeable {
                 last == null ? null : last.utf8ToString(), Version.LATEST.toString());
     }
 
-    /** Snippets from the stored body; query re-parsed on "body" so every model highlights the same way. */
+    /**
+     * Genera gli snippet evidenziati dal corpo del testo memorizzato.
+     * La query viene rieseguita sul campo "body" per garantire consistenza visiva tra tutti i modelli di ranking.
+     */
     private String[] snippets(String text, ScoreDoc[] hits) throws IOException {
         if (hits.length == 0) return new String[0];
         Query q = new SimpleQueryParser(analyzer, Map.of("body", 1f), FLAGS).parse(text);

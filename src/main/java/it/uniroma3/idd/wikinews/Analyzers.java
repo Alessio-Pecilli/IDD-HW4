@@ -17,19 +17,31 @@ import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.analysis.util.ElisionFilter;
 
 /**
- * Text analysis. Each text field is indexed twice:
- *   title, body              -> Italian analyzer: elision, lowercase, asciifolding, stopwords, light stemmer
- *   title_plain, body_plain  -> plain analyzer: lowercase + asciifolding only (baseline, no stemming)
+ * Pipeline di analisi del testo.
+ * Pattern applicati:
+ * - Factory Method (GoF): metodi di fabbrica per la creazione delle istanze degli Analyzer.
+ * - Pure Fabrication (GRASP): classe di supporto coesa che incapsula la configurazione
+ *   linguistica specifica per l'italiano e la baseline non flessa.
+ *
+ * Mappatura campi:
+ *   title, body              -> Analyzer italiano: elisione, minuscole, ripiegamento ASCII,
+ *                               rimozione stopword, stemmer leggero italiano.
+ *   title_plain, body_plain  -> Analyzer plain (baseline): sole minuscole e ripiegamento ASCII,
+ *                               senza rimozione stopword né stemming.
  */
 public final class Analyzers {
 
-    /** Apostrophised articles and prepositions removed by the elision filter (l'Aquila -> Aquila). */
+    /** Articoli e preposizioni articolate elise gestite dal filtro di elisione (es. l'Aquila -> Aquila). */
     static final CharArraySet ELISION = new CharArraySet(List.of(
             "c", "l", "all", "dall", "dell", "nell", "sull", "coll", "pell", "gl", "agl", "dagl", "degl", "negl",
             "sugl", "un", "m", "t", "s", "v", "d", "quest", "quell", "anch", "tutt", "nessun"), true);
 
     private Analyzers() {}
 
+    /**
+     * Fabbrica per l'analyzer dedicato alla lingua italiana.
+     * Applica la catena di filtri: Tokenizer -> Elision -> LowerCase -> ASCIIFolding -> StopFilter -> ItalianLightStemmer.
+     */
     public static Analyzer italian() {
         return new Analyzer() {
             @Override
@@ -44,12 +56,16 @@ public final class Analyzers {
             }
 
             @Override
-            protected TokenStream normalize(String field, TokenStream in) { // used for prefix queries
+            protected TokenStream normalize(String field, TokenStream in) { // impiegato per le query con prefisso/wildcard
                 return new ASCIIFoldingFilter(new LowerCaseFilter(new ElisionFilter(in, ELISION)));
             }
         };
     }
 
+    /**
+     * Fabbrica per l'analyzer elementare "plain" (usato come baseline comparativa).
+     * Non effettua rimozione di stopword né stemming per consentire il match esatto e l'ablation study.
+     */
     public static Analyzer plain() {
         return new Analyzer() {
             @Override
@@ -65,7 +81,10 @@ public final class Analyzers {
         };
     }
 
-    /** One analyzer for the whole index, chosen per field (PerFieldAnalyzerWrapper). */
+    /**
+     * Costruisce un analizzatore composito per l'intero indice, differenziando la strategia
+     * di analisi per singolo campo (PerFieldAnalyzerWrapper).
+     */
     public static Analyzer perField() {
         Analyzer plain = plain();
         return new PerFieldAnalyzerWrapper(italian(), Map.of("title_plain", plain, "body_plain", plain));

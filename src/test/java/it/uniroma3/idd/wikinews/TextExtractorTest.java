@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-/** Unit tests: no index needed. */
+/** Test unitari per TextExtractor: verifica parsing HTML e formati di date italiane senza indice Lucene. */
 class TextExtractorTest {
 
     @Test

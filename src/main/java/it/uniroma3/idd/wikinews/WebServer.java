@@ -17,21 +17,34 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
-/** HTTP layer (JDK built-in server): the web page and the JSON API. */
+/**
+ * Livello di presentazione e interfaccia di rete (HTTP Server integrato nel JDK).
+ * Espone la pagina web interattiva (SPA) e le API REST in formato JSON.
+ *
+ * Pattern applicati:
+ * - Controller (GRASP): riceve le richieste HTTP, valida i parametri in ingresso e delega
+ *   l'elaborazione dell'interrogazione al motore di ricerca (WikinewsSearcher).
+ * - Model-View Separation (Architettura Logica): disaccoppia la logica di presentazione
+ *   dalle strutture dati e dagli indici del dominio Lucene.
+ * - Pure Fabrication (GRASP): adatta il server HTTP incorporato per gestire routing, serializzazione JSON ed errori.
+ */
 public final class WebServer {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
     private static final Set<String> MODELS = Set.of("italian", "plain", "lmdirichlet");
 
-    /** Thrown for invalid input; mapped to HTTP 422. */
+    /** Eccezione per parametri o input utente non validi; mappata sul codice HTTP 422. */
     static final class BadRequest extends RuntimeException {
         BadRequest(String message) { super(message); }
     }
 
     private WebServer() {}
 
-    /** Starts on localhost only; port 0 picks a free port. */
+    /**
+     * Avvia il server HTTP associato a localhost (porta 0 alloca una porta libera).
+     * Utilizza i Virtual Thread di Java 21 per supportare concorrenza elevata con basso overhead.
+     */
     public static HttpServer start(WikinewsSearcher searcher, int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
@@ -63,6 +76,10 @@ public final class WebServer {
 
     private interface Handler { int run() throws IOException; }
 
+    /**
+     * Dispatcher delle richieste HTTP:
+     * valida il metodo HTTP (ammesso solo GET), gestisce gli errori di validazione (422) e le eccezioni interne (500).
+     */
     private static void handle(HttpExchange ex, Handler handler) {
         try {
             if (!ex.getRequestMethod().equals("GET")) {
@@ -76,7 +93,7 @@ public final class WebServer {
             e.printStackTrace();
             safeJson(ex, 500, Map.of("detail", "internal error"));
         } finally {
-            ex.close(); // not try-with-resources: that would close before the catch blocks can reply
+            ex.close(); // non try-with-resources: verrebbe chiuso prima che i catch possano inviare la risposta
         }
     }
 
@@ -85,7 +102,7 @@ public final class WebServer {
     }
 
     private static void safeJson(HttpExchange ex, int status, Object body) {
-        try { json(ex, status, body); } catch (IOException ignored) { /* client already gone */ }
+        try { json(ex, status, body); } catch (IOException ignored) { /* client già disconnesso */ }
     }
 
     private static int reply(HttpExchange ex, int status, String type, byte[] body) throws IOException {
@@ -95,9 +112,10 @@ public final class WebServer {
         return status;
     }
 
+    /** Decodifica i parametri di query URL in una mappa chiave-valore. */
     static Map<String, String> params(String rawQuery) {
+        if (rawQuery == null) return Map.of();
         Map<String, String> out = new HashMap<>();
-        if (rawQuery == null) return out;
         for (String pair : rawQuery.split("&")) {
             int eq = pair.indexOf('=');
             String key = URLDecoder.decode(eq < 0 ? pair : pair.substring(0, eq), UTF_8);
@@ -107,16 +125,18 @@ public final class WebServer {
         return out;
     }
 
+    /** Valida ed estrae un parametro intero all'interno dell'intervallo [min, max]. */
     private static int intParam(Map<String, String> p, String name, int dflt, int min, int max) {
         String v = p.get(name);
         if (v == null) return dflt;
         try {
             int n = Integer.parseInt(v);
             if (n >= min && n <= max) return n;
-        } catch (NumberFormatException ignored) { /* falls through */ }
+        } catch (NumberFormatException ignored) { /* gestito dall'eccezione sottostante */ }
         throw new BadRequest(name + " must be an integer between " + min + " and " + max);
     }
 
+    /** Valida ed estrae un parametro data in formato ISO-8601 YYYY-MM-DD. */
     private static String dateParam(Map<String, String> p, String name) {
         String v = p.get(name);
         if (v == null || v.isEmpty()) return null;

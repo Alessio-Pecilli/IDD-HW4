@@ -21,7 +21,12 @@ import org.junit.jupiter.api.io.TempDir;
 import it.uniroma3.idd.wikinews.WikinewsSearcher.Model;
 import it.uniroma3.idd.wikinews.WikinewsSearcher.Result;
 
-/** Integration tests: the synthetic dump is indexed into a throwaway Lucene index, then queried. */
+/**
+ * Test di integrazione del motore di ricerca.
+ * Indicizza il dump sintetico compresso generato al volo in un indice Lucene temporaneo
+ * e valida i casi d'uso di Information Retrieval:
+ * pipeline linguistica, stemming, accenti, elisioni, filtri temporali, paginazione ed evidenziazione.
+ */
 class SearchTest {
 
     @TempDir

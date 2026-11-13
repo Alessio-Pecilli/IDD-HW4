@@ -20,14 +20,22 @@ import org.apache.lucene.util.Bits;
 import it.uniroma3.idd.wikinews.WikinewsSearcher.Model;
 
 /**
- * Effectiveness + efficiency evaluation on the real index, with automatically judged test collections:
- *  1. Known-item search: N random articles must be found by (a) their title, (b) 4 random body words.
- *     Metrics: Success@1, Success@10, MRR@10.
- *  2. Topical queries: a document is relevant if it carries the matching Wikinews category
- *     (editor-assigned labels used as relevance judgments). Metrics: P@10, nDCG@10 (binary gains).
+ * Valutazione sperimentale di efficacia ed efficienza sull'indice reale con collezioni di test automatiche:
+ *  1. Known-item search: N articoli casuali campionati devono essere ritrovati tramite
+ *     (a) il loro titolo integrale, (b) 4 parole casuali del loro corpo di testo.
+ *     Metriche: Success@1, Success@10, MRR@10.
+ *  2. Query tematiche (Topical queries): un documento è considerato rilevante se possiede la categoria
+ *     Wikinews corrispondente assegnata dai redattori (giudizi di rilevanza oggettivi).
+ *     Metriche: Precision@10, nDCG@10 (con guadagni binari).
+ *
+ * Pattern applicati:
+ * - Pure Fabrication (GRASP): incapsula l'intero protocollo di misurazione IR,
+ *   il calcolo delle metriche matematiche e la generazione del report markdown.
+ * - Strategy (GoF): valuta e confronta le differenti configurazioni di ranking (Config).
  */
 public final class Evaluator {
 
+    /** Query tematiche con la relativa categoria Wikinews usata come ground truth. */
     static final String[][] TOPICAL = {
             {"terremoto", "Terremoti"},
             {"incidente aereo", "Incidenti aerei"},
@@ -51,20 +59,27 @@ public final class Evaluator {
             {"estrazione superenalotto", "Superenalotto"},
     };
 
+    /** Configurazione sperimentale da valutare comparativamente. */
     record Config(String name, Model model, float titleBoost) {}
 
+    /** Insieme delle configurazioni per l'ablation study. */
     static final List<Config> CONFIGS = List.of(
             new Config("BM25 + analyzer italiano, title^3", Model.italian, 3f),
             new Config("BM25 + analyzer italiano, no boost", Model.italian, 1f),
             new Config("BM25 standard (no stemming), title^3", Model.plain, 3f),
             new Config("LM Dirichlet + analyzer italiano, title^3", Model.lmdirichlet, 3f));
 
+    /** Campione per il known-item search (documento target, query titolo, query parole). */
     record Sample(String id, String title, String words) {}
 
     private static final Pattern LONG_WORD = Pattern.compile("\\p{L}{5,}");
 
     private Evaluator() {}
 
+    /**
+     * Esegue l'intera campagna sperimentale, campiona i documenti con seed deterministico,
+     * calcola metriche e latenze (previa fase di warm-up) e scrive la tabella markdown su file.
+     */
     public static void run(WikinewsSearcher searcher, int n, long seed, Path out) throws IOException {
         List<Sample> samples = sample(searcher, n, seed);
         StringBuilder md = new StringBuilder();
@@ -95,6 +110,9 @@ public final class Evaluator {
         System.out.print(md);
     }
 
+    /**
+     * Estrae un campione casuale di N articoli idonei per il test known-item.
+     */
     static List<Sample> sample(WikinewsSearcher searcher, int n, long seed) throws IOException {
         var reader = searcher.reader();
         Bits live = MultiBits.getLiveDocs(reader);
@@ -116,7 +134,7 @@ public final class Evaluator {
         return out;
     }
 
-    /** Returns {S@1, S@10, MRR@10}. */
+    /** Calcola le metriche di known-item search: restituisce {S@1, S@10, MRR@10}. */
     static double[] knownItem(WikinewsSearcher s, List<Sample> samples, Config c, boolean byTitle, List<Double> ms)
             throws IOException {
         double s1 = 0, s10 = 0, rr = 0;
@@ -135,7 +153,7 @@ public final class Evaluator {
         return new double[] {s1 / n, s10 / n, rr / n};
     }
 
-    /** Returns {P@10, nDCG@10}. */
+    /** Calcola le metriche tematiche con categorie: restituisce {P@10, nDCG@10}. */
     static double[] topical(WikinewsSearcher s, Config c, List<Double> ms) throws IOException {
         double p10 = 0, ndcg = 0;
         for (String[] t : TOPICAL) {
@@ -155,8 +173,12 @@ public final class Evaluator {
         return new double[] {p10 / TOPICAL.length, ndcg / TOPICAL.length};
     }
 
+    /**
+     * Esegue l'interrogazione registrando il tempo di latenza in millisecondi,
+     * effettuando preventivamente una chiamata di warm-up per azzerare gli effetti di cache/JIT.
+     */
     private static List<Document> timed(WikinewsSearcher s, String q, Config c, List<Double> ms) throws IOException {
-        s.topDocuments(q, c.model(), c.titleBoost(), 10); // warm-up, so caches don't skew the first config
+        s.topDocuments(q, c.model(), c.titleBoost(), 10); // warm-up: evita che la prima configurazione subisca penalità a freddo
         long t0 = System.nanoTime();
         List<Document> top = s.topDocuments(q, c.model(), c.titleBoost(), 10);
         ms.add((System.nanoTime() - t0) / 1e6);

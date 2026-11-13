@@ -4,15 +4,23 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Command line entry point: index, serve, eval. */
+/**
+ * Punto d'ingresso a riga di comando per le operazioni dell'applicazione:
+ * - index: indicizzazione del dump compresso
+ * - serve: avvio del server HTTP e dell'interfaccia web
+ * - eval: esecuzione della campagna sperimentale
+ *
+ * Pattern applicati:
+ * - Controller (GRASP): interpreta gli argomenti CLI e instrada l'esecuzione al componente appropriato.
+ */
 public final class Main {
 
     private static final String USAGE = """
-            usage:
+            Uso:
               java -jar target/wikinews-search.jar index <dump.tar.gz> [indexDir] [--limit N]
               java -jar target/wikinews-search.jar serve [indexDir] [--port 8000]
               java -jar target/wikinews-search.jar eval  [indexDir] [--n 300] [--out eval/results.md]
-            indexDir defaults to data/index""";
+            La directory di default per l'indice e data/index""";
 
     public static void main(String[] args) throws Exception {
         if (args.length == 0) exit();
@@ -36,7 +44,7 @@ public final class Main {
             case "serve" -> {
                 WikinewsSearcher searcher = new WikinewsSearcher(indexDir(positional, 0));
                 var server = WebServer.start(searcher, Integer.parseInt(port));
-                System.err.println("Wikinews IT Search on http://localhost:" + server.getAddress().getPort());
+                System.err.println("Wikinews IT Search attivo su http://localhost:" + server.getAddress().getPort());
             }
             case "eval" -> {
                 try (WikinewsSearcher searcher = new WikinewsSearcher(indexDir(positional, 0))) {

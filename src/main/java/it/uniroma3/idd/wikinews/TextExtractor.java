@@ -11,7 +11,13 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.TextNode;
 
-/** Document preparation: visible text of the Parsoid HTML and the publication date. */
+/**
+ * Preparazione e sanificazione dei documenti di testo.
+ * Pattern applicati:
+ * - Pure Fabrication (GRASP): incapsula la logica complessa di parsing HTML Parsoid e parsing delle date italiane,
+ *   evitando di sovraccaricare gli oggetti di indicizzazione o le entità di dominio.
+ * - Information Expert (GRASP): gestisce le regole di conversione sintattica per i template Wikinews e il calendario italiano.
+ */
 public final class TextExtractor {
 
     private static final Map<String, Integer> MONTHS = Map.ofEntries(
@@ -24,7 +30,10 @@ public final class TextExtractor {
 
     private TextExtractor() {}
 
-    /** Visible text of a page, one line per block element. */
+    /**
+     * Estrae il testo visibile dell'articolo da HTML Parsoid, preservando una riga per ciascun elemento di blocco.
+     * Rimuove elementi non testuali come stili, script, metadati e intestazioni.
+     */
     public static String htmlToText(String html) {
         if (html == null || html.isEmpty()) return "";
         Document doc = Jsoup.parse(html);
@@ -36,7 +45,9 @@ public final class TextExtractor {
                 .collect(Collectors.joining("\n"));
     }
 
-    /** "14 gennaio 2007" -> "2007-01-14", or null. */
+    /**
+     * Converte una data in lingua italiana (es. "14 gennaio 2007") nel formato ISO-8601 "2007-01-14", oppure null.
+     */
     public static String parseItalianDate(String s) {
         if (s == null) return null;
         Matcher m = DATE.matcher(s);
@@ -47,7 +58,10 @@ public final class TextExtractor {
         return String.format("%04d-%02d-%02d", Integer.parseInt(m.group(3)), month, day);
     }
 
-    /** Publication date from the {{Data|...}} template, falling back to the date category. */
+    /**
+     * Estrae la data di pubblicazione prioritariamente dal template wikitesto {{Data|...}},
+     * con fallback sull'eventuale categoria della data.
+     */
     public static String extractDate(String wikitext, List<String> categories) {
         Matcher m = DATA_TEMPLATE.matcher(wikitext == null ? "" : wikitext);
         if (m.find()) {
