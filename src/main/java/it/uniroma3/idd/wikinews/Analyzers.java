@@ -36,6 +36,25 @@ public final class Analyzers {
             "c", "l", "all", "dall", "dell", "nell", "sull", "coll", "pell", "gl", "agl", "dagl", "degl", "negl",
             "sugl", "un", "m", "t", "s", "v", "d", "quest", "quell", "anch", "tutt", "nessun"), true);
 
+    /**
+     * Stopword italiane normalizzate sia in minuscolo che con ripiegamento caratteri ASCII (ASCII folding).
+     * Garantisce che stopword accentate (es. "perché", "né", "più") vengano rimosse sia in forma accentata che piana.
+     */
+    static final CharArraySet STOPWORDS;
+    static {
+        CharArraySet defaults = ItalianAnalyzer.getDefaultStopSet();
+        CharArraySet folded = new CharArraySet(defaults.size() * 2, true);
+        for (Object w : defaults) {
+            String word = new String((char[]) w);
+            folded.add(word);
+            char[] output = new char[word.length() * 4];
+            int len = org.apache.lucene.analysis.miscellaneous.ASCIIFoldingFilter.foldToASCII(
+                    word.toCharArray(), 0, output, 0, word.length());
+            folded.add(new String(output, 0, len));
+        }
+        STOPWORDS = CharArraySet.unmodifiableSet(folded);
+    }
+
     private Analyzers() {}
 
     /**
@@ -50,7 +69,7 @@ public final class Analyzers {
                 TokenStream ts = new ElisionFilter(source, ELISION);
                 ts = new LowerCaseFilter(ts);
                 ts = new ASCIIFoldingFilter(ts);
-                ts = new StopFilter(ts, ItalianAnalyzer.getDefaultStopSet());
+                ts = new StopFilter(ts, STOPWORDS);
                 ts = new ItalianLightStemFilter(ts);
                 return new TokenStreamComponents(source, ts);
             }

@@ -52,6 +52,8 @@
   .meta { display:flex; gap:6px; margin:6px 0 8px; flex-wrap:wrap; }
   .chip { font-size:12px; font-weight:500; padding:2px 10px; border-radius:999px; border:1px solid var(--border); background:var(--primary-light); color:var(--primary); }
   .chip.teal { background:var(--teal-light); color:var(--teal); }
+  .chip.cat { background:var(--surface-2); color:var(--text-2); cursor:pointer; text-decoration:none; transition:all .15s ease; }
+  .chip.cat:hover { background:var(--primary-light); color:var(--primary); border-color:var(--primary); }
   .snip { margin:0; color:var(--text-2); font-size:14px; overflow-wrap:anywhere; }
   mark { background:var(--mark-bg); color:var(--text); box-shadow:inset 0 -2px 0 var(--mark-border); border-radius:2px; padding:0 1px; }
   #pager { display:flex; gap:8px; justify-content:center; margin-top:20px; }
@@ -123,9 +125,18 @@ async function run(push = true) {
     const div = document.createElement('article'); div.className = 'r card';
     const a = document.createElement('a'); a.href = d.url; a.textContent = d.title; a.target = '_blank'; a.rel = 'noopener';
     const meta = document.createElement('div'); meta.className = 'meta';
-    const chip = (t, cls) => { const c = document.createElement('span'); c.className = 'chip ' + cls; c.textContent = t; return c; };
+    const chip = (t, cls, onclick) => {
+      const c = document.createElement('span'); c.className = 'chip ' + cls; c.textContent = t;
+      if (onclick) c.onclick = onclick;
+      return c;
+    };
     meta.append(chip(itDate(d.date), ''));
     if (d.score != null) meta.append(chip(`score ${d.score}`, 'teal'));
+    if (d.categories && d.categories.length) {
+      d.categories.forEach(cat => {
+        meta.append(chip(cat, 'cat', () => { $('q').value = cat; page = 1; run(); scrollTo(0, 0); }));
+      });
+    }
     const snip = document.createElement('p'); snip.className = 'snip'; snip.innerHTML = d.snippet; // ES highlighter with encoder=html: text escaped, only <mark> added
     div.append(a, meta, snip); return div;
   }));

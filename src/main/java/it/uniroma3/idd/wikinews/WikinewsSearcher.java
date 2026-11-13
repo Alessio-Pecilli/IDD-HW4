@@ -29,7 +29,9 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TotalHits;
+import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.LMDirichletSimilarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.search.uhighlight.DefaultPassageFormatter;
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
 import org.apache.lucene.store.FSDirectory;
@@ -52,8 +54,8 @@ public final class WikinewsSearcher implements Closeable {
     /** Modelli di ranking e analisi linguistica selezionabili. */
     public enum Model { italian, plain, lmdirichlet }
 
-    /** Singolo risultato di ricerca (Hit) arricchito con snippet e metadati. */
-    public record Hit(String id, String title, String url, String date, Float score, String snippet) {}
+    /** Singolo risultato di ricerca (Hit) arricchito con categorie, snippet e metadati. */
+    public record Hit(String id, String title, String url, String date, List<String> categories, Float score, String snippet) {}
 
     /** Risultato aggregato restituito dalla ricerca (conteggio totale, hit della pagina corrente e latenza). */
     public record Result(String query, long total, List<Hit> results, double ms) {}
@@ -124,9 +126,10 @@ public final class WikinewsSearcher implements Closeable {
         StoredFields stored = searcher.storedFields();
         List<Hit> results = new ArrayList<>();
         for (int i = 0; i < hits.length; i++) {
-            Document d = stored.document(hits[i].doc, Set.of("id", "title", "url", "date"));
+            Document d = stored.document(hits[i].doc, Set.of("id", "title", "url", "date", "categories"));
             float score = hits[i].score;
-            results.add(new Hit(d.get("id"), d.get("title"), d.get("url"), d.get("date"),
+            List<String> categories = Arrays.asList(d.getValues("categories"));
+            results.add(new Hit(d.get("id"), d.get("title"), d.get("url"), d.get("date"), categories,
                     Float.isNaN(score) ? null : Math.round(score * 1000) / 1000f, snippets[i]));
         }
         return new Result(text, searcher.count(query), results, Math.round((System.nanoTime() - t0) / 1e5) / 10.0);
@@ -136,7 +139,20 @@ public final class WikinewsSearcher implements Closeable {
      * Restituisce i primi k documenti (id e categorie) senza snippet: metodo ottimizzato per la valutazione sperimentale.
      */
     public List<Document> topDocuments(String text, Model model, float titleBoost, int k) throws IOException {
-        IndexSearcher searcher = model == Model.lmdirichlet ? lm : bm25;
+        return topDocuments(text, model, titleBoost, k, null);
+    }
+
+    /**
+     * Variante di topDocuments con supporto a Similarity customizzata (es. per il tuning di BM25).
+     */
+    public List<Document> topDocuments(String text, Model model, float titleBoost, int k, Similarity similarity) throws IOException {
+        IndexSearcher searcher;
+        if (similarity != null) {
+            searcher = new IndexSearcher(reader);
+            searcher.setSimilarity(similarity);
+        } else {
+            searcher = model == Model.lmdirichlet ? lm : bm25;
+        }
         StoredFields stored = searcher.storedFields();
         List<Document> docs = new ArrayList<>();
         for (ScoreDoc sd : searcher.search(buildQuery(text, model, titleBoost, null, null), k).scoreDocs) {

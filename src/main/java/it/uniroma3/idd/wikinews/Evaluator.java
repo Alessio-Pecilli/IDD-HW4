@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.MultiBits;
 import org.apache.lucene.index.StoredFields;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.Bits;
 
 import it.uniroma3.idd.wikinews.WikinewsSearcher.Model;
@@ -60,14 +62,19 @@ public final class Evaluator {
     };
 
     /** Configurazione sperimentale da valutare comparativamente. */
-    record Config(String name, Model model, float titleBoost) {}
+    record Config(String name, Model model, float titleBoost, Similarity similarity) {
+        Config(String name, Model model, float titleBoost) {
+            this(name, model, titleBoost, null);
+        }
+    }
 
-    /** Insieme delle configurazioni per l'ablation study. */
+    /** Insieme delle configurazioni per l'ablation study e per il tuning dei parametri BM25 (k1 e b). */
     static final List<Config> CONFIGS = List.of(
-            new Config("BM25 + analyzer italiano, title^3", Model.italian, 3f),
-            new Config("BM25 + analyzer italiano, no boost", Model.italian, 1f),
+            new Config("BM25 (k1=1.2, b=0.75) + analyzer italiano, title^3", Model.italian, 3f),
+            new Config("BM25 (k1=1.6, b=0.40 news-tuned) + analyzer italiano, title^3", Model.italian, 3f, new BM25Similarity(1.6f, 0.40f)),
+            new Config("BM25 (k1=1.2, b=0.75) + analyzer italiano, no boost", Model.italian, 1f),
             new Config("BM25 standard (no stemming), title^3", Model.plain, 3f),
-            new Config("LM Dirichlet + analyzer italiano, title^3", Model.lmdirichlet, 3f));
+            new Config("LM Dirichlet (mu=2000) + analyzer italiano, title^3", Model.lmdirichlet, 3f));
 
     /** Campione per il known-item search (documento target, query titolo, query parole). */
     record Sample(String id, String title, String words) {}
@@ -178,9 +185,9 @@ public final class Evaluator {
      * effettuando preventivamente una chiamata di warm-up per azzerare gli effetti di cache/JIT.
      */
     private static List<Document> timed(WikinewsSearcher s, String q, Config c, List<Double> ms) throws IOException {
-        s.topDocuments(q, c.model(), c.titleBoost(), 10); // warm-up: evita che la prima configurazione subisca penalità a freddo
+        s.topDocuments(q, c.model(), c.titleBoost(), 10, c.similarity()); // warm-up: evita che la prima configurazione subisca penalità a freddo
         long t0 = System.nanoTime();
-        List<Document> top = s.topDocuments(q, c.model(), c.titleBoost(), 10);
+        List<Document> top = s.topDocuments(q, c.model(), c.titleBoost(), 10, c.similarity());
         ms.add((System.nanoTime() - t0) / 1e6);
         return top;
     }

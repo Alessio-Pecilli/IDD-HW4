@@ -154,8 +154,18 @@ class SearchTest {
         WikinewsSearcher.Hit hit = search("scudetto").results().get(0);
         assertTrue(hit.url().startsWith("https://it.wikinews.org/wiki/"));
         assertEquals("2012-05-20", hit.date());
+        assertEquals(List.of("Sport", "Calcio"), hit.categories());
         assertTrue(hit.score() > 0);
         assertTrue(hit.snippet().contains("<mark>scudetto</mark>"), hit.snippet());
+    }
+
+    @Test
+    void accentedStopwordsRemoved() throws IOException {
+        // "perché" e "più" sono stopword italiane accentate: devono essere filtrate sia in forma accentata che piana
+        List<String> accented = tokens(Analyzers.italian(), "perché più notizia");
+        assertEquals(List.of("notiz"), accented);
+        List<String> plain = tokens(Analyzers.italian(), "perche piu notizia");
+        assertEquals(List.of("notiz"), plain);
     }
 
     @Test
