@@ -4,6 +4,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import it.uniroma3.idd.wikinews.eval.Evaluator;
+import it.uniroma3.idd.wikinews.indexing.WikinewsIndexer;
+import it.uniroma3.idd.wikinews.search.SearchService;
+import it.uniroma3.idd.wikinews.search.WikinewsSearcher;
+import it.uniroma3.idd.wikinews.web.WebServer;
+
 /**
  * Punto d'ingresso a riga di comando per le operazioni dell'applicazione:
  * - index: indicizzazione del dump compresso
@@ -42,12 +48,12 @@ public final class Main {
                         limit == null ? null : Integer.parseInt(limit));
             }
             case "serve" -> {
-                WikinewsSearcher searcher = new WikinewsSearcher(indexDir(positional, 0));
+                SearchService searcher = new WikinewsSearcher(indexDir(positional, 0));
                 var server = WebServer.start(searcher, Integer.parseInt(port));
                 System.err.println("Wikinews IT Search attivo su http://localhost:" + server.getAddress().getPort());
             }
             case "eval" -> {
-                try (WikinewsSearcher searcher = new WikinewsSearcher(indexDir(positional, 0))) {
+                try (SearchService searcher = new WikinewsSearcher(indexDir(positional, 0))) {
                     Evaluator.run(searcher, Integer.parseInt(n), 42, Path.of(out));
                 }
             }

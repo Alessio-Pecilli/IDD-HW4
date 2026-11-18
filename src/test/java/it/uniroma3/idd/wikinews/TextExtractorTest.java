@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import it.uniroma3.idd.wikinews.core.analysis.TextExtractor;
+
 /** Test unitari per TextExtractor: verifica parsing HTML e formati di date italiane senza indice Lucene. */
 class TextExtractorTest {
 

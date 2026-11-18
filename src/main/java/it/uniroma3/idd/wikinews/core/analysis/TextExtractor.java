@@ -1,4 +1,4 @@
-package it.uniroma3.idd.wikinews;
+package it.uniroma3.idd.wikinews.core.analysis;
 
 import java.util.List;
 import java.util.Map;

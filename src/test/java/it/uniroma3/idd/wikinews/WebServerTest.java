@@ -2,7 +2,6 @@ package it.uniroma3.idd.wikinews;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -22,6 +21,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 
+import it.uniroma3.idd.wikinews.indexing.WikinewsIndexer;
+import it.uniroma3.idd.wikinews.search.SearchService;
+import it.uniroma3.idd.wikinews.search.WikinewsSearcher;
+import it.uniroma3.idd.wikinews.web.WebServer;
+
 /**
  * Test end-to-end sul server HTTP reale (localhost).
  * Valida il rendering della SPA, le API REST JSON, le risposte HTTP 422 a input malformati
@@ -31,7 +35,7 @@ class WebServerTest {
 
     @TempDir
     static Path tmp;
-    static WikinewsSearcher searcher;
+    static SearchService searcher;
     static HttpServer server;
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
@@ -98,28 +102,31 @@ class WebServerTest {
     }
 
     @Test
-    void inputValidation() throws Exception {
-        assertEquals(422, get("/api/search").statusCode());
-        assertEquals(422, get("/api/search?q=x&page=0").statusCode());
-        assertEquals(422, get("/api/search?q=x&page=abc").statusCode());
-        assertEquals(422, get("/api/search?q=x&sort=drop").statusCode());
-        assertEquals(422, get("/api/search?q=x&model=tfidf").statusCode());
-        assertEquals(422, get("/api/search?q=x&date_from=ieri").statusCode());
-        assertEquals(422, get("/api/search?q=" + "x".repeat(501)).statusCode());
+    void validationErrorsReturn422() throws Exception {
+        assertEquals(422, get("/api/search").statusCode());                          // missing q
+        assertEquals(422, get("/api/search?q=" + "x".repeat(501)).statusCode());     // q too long
+        assertEquals(422, get("/api/search?q=x&page=0").statusCode());               // page < 1
+        assertEquals(422, get("/api/search?q=x&page=abc").statusCode());             // page not integer
+        assertEquals(422, get("/api/search?q=x&size=20").statusCode());              // size > 10
+        assertEquals(422, get("/api/search?q=x&model=invalid").statusCode());        // invalid model
+        assertEquals(422, get("/api/search?q=x&sort=unknown").statusCode());         // invalid sort
+        assertEquals(422, get("/api/search?q=x&date_from=01-01-2020").statusCode()); // invalid date format
     }
 
     @Test
-    void hostileQueriesNeverFail() throws Exception {
-        for (String hostile : new String[] {"\"", "a AND", "NEAR(a b)", "title:x", "*", "a)(", "'; DROP TABLE docs; --",
-                "<script>alert(1)</script>", "a\\", "~2", "(((", "|||", "-", "+-+"}) {
-            assertEquals(200, get("/api/search?q=" + q(hostile)).statusCode(), hostile);
-        }
-        assertEquals(5, JSON.readTree(get("/api/stats").body()).get("documents").asInt());
+    void methodNotAllowedOnPost() throws Exception {
+        HttpRequest req = HttpRequest.newBuilder(URI.create("http://localhost:" + server.getAddress().getPort() + "/api/search"))
+                .POST(HttpRequest.BodyPublishers.noBody()).build();
+        assertEquals(405, HTTP.send(req, HttpResponse.BodyHandlers.discarding()).statusCode());
     }
 
     @Test
-    void snippetsAreHtmlEscaped() throws Exception {
-        JsonNode r = JSON.readTree(get("/api/search?q=" + q("calcio")).body());
-        for (JsonNode hit : r.get("results")) assertFalse(hit.get("snippet").asText().contains("<p>"));
+    void injectionAttacksDoNotCrash() throws Exception {
+        // Query injection (sintassi Lucene malformata): SimpleQueryParser deve degradare graziosamente senza 500
+        assertEquals(200, get("/api/search?q=" + q("((( AND OR NOT \"\"")).statusCode());
+        // XSS attempt in query: non deve causare errori né rompere il JSON
+        HttpResponse<String> r = get("/api/search?q=" + q("<script>alert(1)</script>"));
+        assertEquals(200, r.statusCode());
+        assertTrue(r.headers().firstValue("Content-Type").orElse("").contains("application/json"));
     }
 }

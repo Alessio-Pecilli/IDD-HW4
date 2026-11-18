@@ -1,4 +1,4 @@
-package it.uniroma3.idd.wikinews;
+package it.uniroma3.idd.wikinews.core.analysis;
 
 import java.util.List;
 import java.util.Map;
@@ -32,7 +32,7 @@ import org.apache.lucene.analysis.util.ElisionFilter;
 public final class Analyzers {
 
     /** Articoli e preposizioni articolate elise gestite dal filtro di elisione (es. l'Aquila -> Aquila). */
-    static final CharArraySet ELISION = new CharArraySet(List.of(
+    public static final CharArraySet ELISION = new CharArraySet(List.of(
             "c", "l", "all", "dall", "dell", "nell", "sull", "coll", "pell", "gl", "agl", "dagl", "degl", "negl",
             "sugl", "un", "m", "t", "s", "v", "d", "quest", "quell", "anch", "tutt", "nessun"), true);
 
@@ -40,7 +40,7 @@ public final class Analyzers {
      * Stopword italiane normalizzate sia in minuscolo che con ripiegamento caratteri ASCII (ASCII folding).
      * Garantisce che stopword accentate (es. "perché", "né", "più") vengano rimosse sia in forma accentata che piana.
      */
-    static final CharArraySet STOPWORDS;
+    public static final CharArraySet STOPWORDS;
     static {
         CharArraySet defaults = ItalianAnalyzer.getDefaultStopSet();
         CharArraySet folded = new CharArraySet(defaults.size() * 2, true);

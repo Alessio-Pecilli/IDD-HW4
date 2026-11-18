@@ -1,4 +1,4 @@
-package it.uniroma3.idd.wikinews;
+package it.uniroma3.idd.wikinews.web;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -17,15 +17,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
+import it.uniroma3.idd.wikinews.core.model.SearchModel;
+import it.uniroma3.idd.wikinews.search.SearchService;
+
 /**
  * Livello di presentazione e interfaccia di rete (HTTP Server integrato nel JDK).
  * Espone la pagina web interattiva (SPA) e le API REST in formato JSON.
  *
  * Pattern applicati:
  * - Controller (GRASP): riceve le richieste HTTP, valida i parametri in ingresso e delega
- *   l'elaborazione dell'interrogazione al motore di ricerca (WikinewsSearcher).
- * - Model-View Separation (Architettura Logica): disaccoppia la logica di presentazione
- *   dalle strutture dati e dagli indici del dominio Lucene.
+ *   l'elaborazione dell'interrogazione al motore di ricerca (SearchService).
+ * - Model-View Separation: disaccoppia la logica di presentazione
+ *   dalle strutture dati interne del motore Lucene.
  * - Pure Fabrication (GRASP): adatta il server HTTP incorporato per gestire routing, serializzazione JSON ed errori.
  */
 public final class WebServer {
@@ -35,8 +38,8 @@ public final class WebServer {
     private static final Set<String> MODELS = Set.of("italian", "plain", "lmdirichlet");
 
     /** Eccezione per parametri o input utente non validi; mappata sul codice HTTP 422. */
-    static final class BadRequest extends RuntimeException {
-        BadRequest(String message) { super(message); }
+    public static final class BadRequest extends RuntimeException {
+        public BadRequest(String message) { super(message); }
     }
 
     private WebServer() {}
@@ -45,7 +48,7 @@ public final class WebServer {
      * Avvia il server HTTP associato a localhost (porta 0 alloca una porta libera).
      * Utilizza i Virtual Thread di Java 21 per supportare concorrenza elevata con basso overhead.
      */
-    public static HttpServer start(WikinewsSearcher searcher, int port) throws IOException {
+    public static HttpServer start(SearchService searcher, int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), port), 0);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.createContext("/", ex -> handle(ex, () -> {
@@ -73,7 +76,7 @@ public final class WebServer {
             String sort = p.getOrDefault("sort", "relevance");
             if (!sort.equals("relevance") && !sort.equals("date")) throw new BadRequest("sort must be relevance or date");
             String from = dateParam(p, "date_from"), to = dateParam(p, "date_to");
-            return json(ex, 200, searcher.search(q, page, size, WikinewsSearcher.Model.valueOf(model),
+            return json(ex, 200, searcher.search(q, page, size, SearchModel.fromString(model),
                     sort.equals("date"), from, to, 3f));
         }));
         server.createContext("/api/stats", ex -> handle(ex, () -> json(ex, 200, searcher.stats())));
@@ -98,56 +101,56 @@ public final class WebServer {
             safeJson(ex, 422, Map.of("detail", e.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
-            safeJson(ex, 500, Map.of("detail", "internal error"));
+            safeJson(ex, 500, Map.of("detail", "internal server error"));
         } finally {
-            ex.close(); // non try-with-resources: verrebbe chiuso prima che i catch possano inviare la risposta
+            ex.close();
         }
     }
 
-    private static int json(HttpExchange ex, int status, Object body) throws IOException {
-        return reply(ex, status, "application/json; charset=utf-8", JSON.writeValueAsBytes(body));
-    }
-
-    private static void safeJson(HttpExchange ex, int status, Object body) {
-        try { json(ex, status, body); } catch (IOException ignored) { /* client già disconnesso */ }
-    }
-
-    private static int reply(HttpExchange ex, int status, String type, byte[] body) throws IOException {
-        ex.getResponseHeaders().set("Content-Type", type);
-        ex.sendResponseHeaders(status, body.length);
+    private static int reply(HttpExchange ex, int code, String contentType, byte[] body) throws IOException {
+        ex.getResponseHeaders().set("Content-Type", contentType);
+        ex.sendResponseHeaders(code, body.length);
         ex.getResponseBody().write(body);
-        return status;
+        return code;
     }
 
-    /** Decodifica i parametri di query URL in una mappa chiave-valore. */
-    static Map<String, String> params(String rawQuery) {
-        if (rawQuery == null) return Map.of();
-        Map<String, String> out = new HashMap<>();
-        for (String pair : rawQuery.split("&")) {
+    private static int json(HttpExchange ex, int code, Object data) throws IOException {
+        return reply(ex, code, "application/json; charset=utf-8", JSON.writeValueAsBytes(data));
+    }
+
+    private static void safeJson(HttpExchange ex, int code, Object data) {
+        try { json(ex, code, data); } catch (Exception ignored) {}
+    }
+
+    private static Map<String, String> params(String raw) {
+        Map<String, String> map = new HashMap<>();
+        if (raw == null || raw.isBlank()) return map;
+        for (String pair : raw.split("&")) {
             int eq = pair.indexOf('=');
-            String key = URLDecoder.decode(eq < 0 ? pair : pair.substring(0, eq), UTF_8);
-            String value = eq < 0 ? "" : URLDecoder.decode(pair.substring(eq + 1), UTF_8);
-            out.putIfAbsent(key, value);
+            if (eq > 0) {
+                map.put(URLDecoder.decode(pair.substring(0, eq), UTF_8),
+                        URLDecoder.decode(pair.substring(eq + 1), UTF_8));
+            }
         }
-        return out;
+        return map;
     }
 
-    /** Valida ed estrae un parametro intero all'interno dell'intervallo [min, max]. */
-    private static int intParam(Map<String, String> p, String name, int dflt, int min, int max) {
-        String v = p.get(name);
-        if (v == null) return dflt;
+    private static int intParam(Map<String, String> p, String name, int def, int min, int max) {
+        String val = p.get(name);
+        if (val == null) return def;
         try {
-            int n = Integer.parseInt(v);
-            if (n >= min && n <= max) return n;
-        } catch (NumberFormatException ignored) { /* gestito dall'eccezione sottostante */ }
-        throw new BadRequest(name + " must be an integer between " + min + " and " + max);
+            int v = Integer.parseInt(val);
+            if (v < min || v > max) throw new BadRequest(name + " out of range [" + min + ", " + max + "]");
+            return v;
+        } catch (NumberFormatException e) {
+            throw new BadRequest(name + " must be an integer");
+        }
     }
 
-    /** Valida ed estrae un parametro data in formato ISO-8601 YYYY-MM-DD. */
     private static String dateParam(Map<String, String> p, String name) {
         String v = p.get(name);
-        if (v == null || v.isEmpty()) return null;
-        if (!ISO_DATE.matcher(v).matches()) throw new BadRequest(name + " must be YYYY-MM-DD");
+        if (v == null || v.isBlank()) return null;
+        if (!ISO_DATE.matcher(v).matches()) throw new BadRequest(name + " must be in YYYY-MM-DD format");
         return v;
     }
 }

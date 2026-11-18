@@ -18,8 +18,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import it.uniroma3.idd.wikinews.WikinewsSearcher.Model;
-import it.uniroma3.idd.wikinews.WikinewsSearcher.Result;
+import it.uniroma3.idd.wikinews.core.analysis.Analyzers;
+import it.uniroma3.idd.wikinews.core.model.IndexStats;
+import it.uniroma3.idd.wikinews.core.model.IndexingStats;
+import it.uniroma3.idd.wikinews.core.model.SearchHit;
+import it.uniroma3.idd.wikinews.core.model.SearchModel;
+import it.uniroma3.idd.wikinews.core.model.SearchResult;
+import it.uniroma3.idd.wikinews.indexing.WikinewsIndexer;
+import it.uniroma3.idd.wikinews.search.SearchService;
+import it.uniroma3.idd.wikinews.search.WikinewsSearcher;
 
 /**
  * Test di integrazione del motore di ricerca.
@@ -31,8 +38,8 @@ class SearchTest {
 
     @TempDir
     static Path tmp;
-    static WikinewsIndexer.Stats stats;
-    static WikinewsSearcher searcher;
+    static IndexingStats stats;
+    static SearchService searcher;
 
     @BeforeAll
     static void index() throws IOException {
@@ -45,16 +52,16 @@ class SearchTest {
         searcher.close();
     }
 
-    static Result search(String q) throws IOException {
-        return searcher.search(q, 1, 10, Model.italian, false, null, null, 3f);
+    static SearchResult search(String q) throws IOException {
+        return searcher.search(q, 1, 10, SearchModel.ITALIAN, false, null, null, 3f);
     }
 
-    static List<String> ids(Result r) {
-        return r.results().stream().map(WikinewsSearcher.Hit::id).toList();
+    static List<String> ids(SearchResult r) {
+        return r.results().stream().map(SearchHit::id).toList();
     }
 
-    static Set<String> idSet(Result r) {
-        return r.results().stream().map(WikinewsSearcher.Hit::id).collect(Collectors.toSet());
+    static Set<String> idSet(SearchResult r) {
+        return r.results().stream().map(SearchHit::id).collect(Collectors.toSet());
     }
 
     static List<String> tokens(Analyzer a, String text) throws IOException {
@@ -93,7 +100,7 @@ class SearchTest {
     @Test
     void stemmingFindsInflectedForms() throws IOException {
         assertEquals(Set.of("1", "4"), idSet(search("terremoto")));   // doc 4 only says "terremoti"
-        assertEquals(Set.of("1"), idSet(searcher.search("terremoto", 1, 10, Model.plain, false, null, null, 3f)));
+        assertEquals(Set.of("1"), idSet(searcher.search("terremoto", 1, 10, SearchModel.PLAIN, false, null, null, 3f)));
         assertEquals(Set.of("2", "5"), idSet(search("elezioni")));
     }
 
@@ -120,21 +127,21 @@ class SearchTest {
 
     @Test
     void lmDirichletModel() throws IOException {
-        assertEquals(Set.of("1", "4"), idSet(searcher.search("terremoto", 1, 10, Model.lmdirichlet, false, null, null, 3f)));
+        assertEquals(Set.of("1", "4"), idSet(searcher.search("terremoto", 1, 10, SearchModel.LMDIRICHLET, false, null, null, 3f)));
     }
 
     @Test
     void dateFilterAndSort() throws IOException {
-        assertEquals(List.of("4"), ids(searcher.search("terremoto", 1, 10, Model.italian, false, "2010-01-01", null, 3f)));
+        assertEquals(List.of("4"), ids(searcher.search("terremoto", 1, 10, SearchModel.ITALIAN, false, "2010-01-01", null, 3f)));
         assertEquals(List.of("4", "1", "2", "5"),
-                ids(searcher.search("presidente | terremoto", 1, 10, Model.italian, true, null, null, 3f)));
+                ids(searcher.search("presidente | terremoto", 1, 10, SearchModel.ITALIAN, true, null, null, 3f)));
     }
 
     @Test
     void pagination() throws IOException {
         Set<String> seen = new java.util.HashSet<>();
         for (int page = 1; page <= 3; page++) {
-            Result r = searcher.search("presidente | terremoto | juventus", page, 2, Model.italian, false, null, null, 3f);
+            SearchResult r = searcher.search("presidente | terremoto | juventus", page, 2, SearchModel.ITALIAN, false, null, null, 3f);
             assertEquals(5, r.total());
             seen.addAll(ids(r));
         }
@@ -151,7 +158,7 @@ class SearchTest {
 
     @Test
     void resultFieldsAndHighlight() throws IOException {
-        WikinewsSearcher.Hit hit = search("scudetto").results().get(0);
+        SearchHit hit = search("scudetto").results().get(0);
         assertTrue(hit.url().startsWith("https://it.wikinews.org/wiki/"));
         assertEquals("2012-05-20", hit.date());
         assertEquals(List.of("Sport", "Calcio"), hit.categories());
@@ -170,9 +177,9 @@ class SearchTest {
 
     @Test
     void indexStats() throws IOException {
-        WikinewsSearcher.Stats s = searcher.stats();
+        IndexStats s = searcher.stats();
         assertEquals(5, s.documents());
-        assertEquals("2006-05-10", s.first_date());
-        assertEquals("2012-05-20", s.last_date());
+        assertEquals("2006-05-10", s.firstDate());
+        assertEquals("2012-05-20", s.lastDate());
     }
 }
