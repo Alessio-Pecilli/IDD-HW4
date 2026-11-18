@@ -6,7 +6,7 @@ contenute nel dump Wikimedia Enterprise
 
 **Autori:** Alessio Pecilli, Matteo Cerretani, Alessio Natale Scarpa (corso di Ingegneria dei Dati, Homework 4).
 
-Scritto in **Java 21** con **Apache Lucene 10.6** usato direttamente, come negli esempi di
+Scritto in **Java 25 LTS** con **Apache Lucene 10.6** usato direttamente, come negli esempi di
 [tteofili/lucenex](https://github.com/tteofili/lucenex). Non servono servizi esterni: l'indice è una cartella su disco,
 e la pagina web è servita dal server HTTP incluso nel JDK.
 
@@ -47,7 +47,7 @@ dump .tar.gz ──► WikinewsIndexer ──► indice Lucene (data/index) ◄�
 
 ## Installazione
 
-Requisiti: **JDK 21 o superiore**. Maven non serve: il repository include il Maven Wrapper (`mvnw`).
+Requisiti: **JDK 25 o superiore**. Maven non serve: il repository include il Maven Wrapper (`mvnw`).
 
 1. Clona il repository e compila: i test vengono eseguiti e si ottiene un unico jar eseguibile.
 

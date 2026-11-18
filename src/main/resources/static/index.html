@@ -14,6 +14,10 @@
     <div class="logo" aria-hidden="true">W</div>
     <h1>Wikinews IT Search</h1>
     <div id="stats"></div>
+    <button id="open-helper" type="button" class="btn-helper" aria-label="Guida alla sintassi di ricerca" title="Guida alla sintassi di ricerca">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <span>Guida Query</span>
+    </button>
   </div>
 </header>
 <main>
@@ -34,6 +38,84 @@
   <div id="results"></div>
   <div id="pager"></div>
 </main>
+
+<!-- Helper laterale a comparsa (Offcanvas / Sidebar Drawer) -->
+<div id="helper-backdrop" class="helper-backdrop" aria-hidden="true"></div>
+<aside id="helper-drawer" class="helper-drawer" aria-label="Guida alla sintassi di ricerca" aria-hidden="true">
+  <div class="helper-header">
+    <h2>Sintassi di Ricerca</h2>
+    <button id="close-helper" class="helper-close" aria-label="Chiudi guida">&times;</button>
+  </div>
+  <div class="helper-body">
+    <p class="help-intro">Il motore usa <code>SimpleQueryParser</code> con operatore predefinito <strong>AND</strong>. Clicca su un esempio per inserirlo nella barra di ricerca.</p>
+
+    <div class="help-section">
+      <div class="help-section-title">Operatori Booleani</div>
+      
+      <div class="help-item">
+        <div class="help-item-header"><strong>AND implicito (Spazio o +)</strong></div>
+        <p>I documenti devono contenere tutti i termini specificati.</p>
+        <div class="help-code-sample" data-query="governo parlamento">
+          <code>governo parlamento</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-header"><strong>OR Booleano (|)</strong></div>
+        <p>Almeno uno dei termini deve essere presente nel documento.</p>
+        <div class="help-code-sample" data-query="crisi | accordo">
+          <code>crisi | accordo</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-header"><strong>NOT Booleano / Esclusione (-)</strong></div>
+        <p>Esclude categoricamente i documenti che contengono il termine.</p>
+        <div class="help-code-sample" data-query="elezioni -sondaggi">
+          <code>elezioni -sondaggi</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">Frasi Esatte e Raggruppamento</div>
+
+      <div class="help-item">
+        <div class="help-item-header"><strong>Phrase Query (" ")</strong></div>
+        <p>Cerca la sequenza esatta di parole nell'ordine dato.</p>
+        <div class="help-code-sample" data-query='"presidente della repubblica"'>
+          <code>"presidente della repubblica"</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+
+      <div class="help-item">
+        <div class="help-item-header"><strong>Precedenza Booleana ( )</strong></div>
+        <p>Combina più operatori raggruppando le clausole.</p>
+        <div class="help-code-sample" data-query='(roma | milano) trasporti -sciopero'>
+          <code>(roma | milano) trasporti -sciopero</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="help-section">
+      <div class="help-section-title">Matching Prefisso (Wildcard)</div>
+
+      <div class="help-item">
+        <div class="help-item-header"><strong>Prefisso Termine (*)</strong></div>
+        <p>Trova termini che iniziano con la radice specificata.</p>
+        <div class="help-code-sample" data-query="calc*">
+          <code>calc*</code>
+          <span class="hint">usa ↵</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</aside>
 <script>
 const $ = id => document.getElementById(id);
 let page = 1;
@@ -98,6 +180,36 @@ async function run(push = true) {
 $('f').onsubmit = e => { e.preventDefault(); page = 1; run(); };
 addEventListener('popstate', () => { readUrl(); run(false); });
 readUrl(); run(false);
+
+// Gestione dell'helper laterale (Offcanvas drawer)
+const drawer = $('helper-drawer');
+const backdrop = $('helper-backdrop');
+function toggleHelper(open) {
+  drawer.classList.toggle('open', open);
+  backdrop.classList.toggle('open', open);
+  drawer.setAttribute('aria-hidden', String(!open));
+  backdrop.setAttribute('aria-hidden', String(!open));
+  if (open) $('close-helper').focus();
+}
+$('open-helper').onclick = () => toggleHelper(true);
+$('close-helper').onclick = () => toggleHelper(false);
+backdrop.onclick = () => toggleHelper(false);
+addEventListener('keydown', e => {
+  if (e.key === 'Escape' && drawer.classList.contains('open')) {
+    toggleHelper(false);
+  }
+});
+
+// Click sui campioni di codice per compilare ed eseguire istantaneamente la query
+document.querySelectorAll('.help-code-sample').forEach(el => {
+  el.onclick = () => {
+    $('q').value = el.getAttribute('data-query');
+    page = 1;
+    toggleHelper(false);
+    run();
+    $('q').focus();
+  };
+});
 </script>
 </body>
 </html>
