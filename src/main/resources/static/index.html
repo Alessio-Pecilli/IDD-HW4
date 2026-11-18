@@ -9,117 +9,131 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div class="wiki-bg" aria-hidden="true">
+  <svg viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="120" cy="120" r="102" stroke="currentColor" stroke-width="2.5" stroke-dasharray="10 6"/>
+    <circle cx="120" cy="120" r="88" stroke="currentColor" stroke-width="1.6"/>
+    <ellipse cx="120" cy="120" rx="46" ry="88" stroke="currentColor" stroke-width="1.5"/>
+    <ellipse cx="120" cy="120" rx="76" ry="88" stroke="currentColor" stroke-width="1.1"/>
+    <path d="M36 90 C70 102, 170 102, 204 90" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M32 120 C72 132, 168 132, 208 120" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M38 150 C74 160, 166 160, 202 150" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M58 58 C88 70, 152 70, 182 58" stroke="currentColor" stroke-width="1.2"/>
+    <path d="M58 182 C88 172, 152 172, 182 182" stroke="currentColor" stroke-width="1.2"/>
+    <text x="120" y="137" text-anchor="middle" font-family="Georgia, serif" font-size="68" font-weight="700" fill="currentColor" opacity="0.72">W</text>
+  </svg>
+</div>
+
 <header>
   <div class="bar">
     <div class="logo" aria-hidden="true">W</div>
     <h1>Wikinews IT Search</h1>
     <div id="stats"></div>
-    <button id="open-helper" type="button" class="btn-helper" aria-label="Guida alla sintassi di ricerca" title="Guida alla sintassi di ricerca">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-      <span>Guida Query</span>
-    </button>
   </div>
 </header>
+
 <main>
   <form id="f" class="card" role="search">
     <div class="searchrow">
       <input id="q" name="q" type="search" placeholder="Cerca nelle notizie… es. elezioni &quot;presidente della repubblica&quot; -sondaggi" autofocus aria-label="Query">
-      <button>Cerca</button>
+      <button type="submit">Cerca</button>
     </div>
     <div class="filters">
-      <label class="field">Modello di ranking <select id="model"><option value="italian">BM25 + analyzer italiano</option><option value="plain">BM25 senza stemming</option><option value="lmdirichlet">LM Dirichlet</option></select></label>
-      <label class="field">Ordina per <select id="sort"><option value="relevance">Rilevanza</option><option value="date">Data</option></select></label>
+      <label class="field">Modello di ranking
+        <select id="model">
+          <option value="italian">BM25 + analyzer italiano</option>
+          <option value="plain">BM25 senza stemming</option>
+          <option value="lmdirichlet">LM Dirichlet</option>
+        </select>
+      </label>
+      <label class="field">Ordina per
+        <select id="sort">
+          <option value="relevance">Rilevanza</option>
+          <option value="date">Data</option>
+        </select>
+      </label>
       <label class="field">Dal <input id="from" type="date"></label>
       <label class="field">Al <input id="to" type="date"></label>
     </div>
-    <div class="help">Parole in AND · <code>"frase esatta"</code> · <code>-escludi</code> · <code>a | b</code> · prefisso <code>calc*</code></div>
+    <div class="help-bar">
+      <div class="help">Parole in AND · <code>"frase esatta"</code> · <code>-escludi</code> · <code>a | b</code> · prefisso <code>olimp*</code></div>
+      <button type="button" id="helper-btn" class="secondary helper-toggle" aria-expanded="false" aria-controls="helper-panel">Guida &amp; Esempi</button>
+    </div>
+    <div id="model-hint" class="model-hint" aria-live="polite"></div>
   </form>
+
+  <section id="helper-panel" class="card helper-panel" hidden aria-label="Guida alle query e ai modelli">
+    <div class="helper-head">
+      <h2>Come funziona la ricerca e cosa cambia tra i modelli</h2>
+      <button type="button" id="helper-close" class="secondary helper-toggle">Chiudi</button>
+    </div>
+
+    <div>
+      <p class="helper-section-title">1 · Confronta i modelli di ranking (clicca per selezionare)</p>
+      <div class="helper-grid">
+        <div class="helper-box" data-model="italian" tabindex="0" role="button">
+          <span class="helper-badge">Consigliato · P@10 0,790</span>
+          <strong>BM25 + analyzer italiano</strong>
+          <p>Rimuove elisioni (<code>l'Aquila → aquil</code>), accenti e stopword, poi applica stemming leggero. Ideale per ricerche tematiche e parole flesse.</p>
+        </div>
+        <div class="helper-box" data-model="plain" tabindex="0" role="button">
+          <span class="helper-badge">Titoli esatti · S@1 0,983</span>
+          <strong>BM25 senza stemming</strong>
+          <p>Confronta i termini quasi esatti (solo minuscole e accenti). Ottimo per titoli seriali, sigle o nomi propri dove lo stemming crea ambiguità.</p>
+        </div>
+        <div class="helper-box" data-model="lmdirichlet" tabindex="0" role="button">
+          <span class="helper-badge">Modello generativo · μ = 2000</span>
+          <strong>LM Dirichlet</strong>
+          <p>Stima la probabilità della query con smoothing sul corpus. Penalizza meno i documenti lunghi e valorizza i termini rari rispetto al vocabolario globale.</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="helper-section-title">2 · Esempi di sintassi (clicca per provare subito)</p>
+      <div class="syntax-list">
+        <button type="button" class="try-chip" data-query="terremoto l'aquila"><code>terremoto l'aquila</code><span>AND + elisione</span></button>
+        <button type="button" class="try-chip" data-query="&quot;presidente della repubblica&quot;"><code>"presidente della repubblica"</code><span>Frase esatta</span></button>
+        <button type="button" class="try-chip" data-query="calcio -juventus"><code>calcio -juventus</code><span>Esclusione NOT</span></button>
+        <button type="button" class="try-chip" data-query="obama | mccain"><code>obama | mccain</code><span>Alternativa OR</span></button>
+        <button type="button" class="try-chip" data-query="olimp*"><code>olimp*</code><span>Prefisso</span></button>
+        <button type="button" class="try-chip" data-query="(elezioni | governo) -sondaggi"><code>(elezioni | governo) -sondaggi</code><span>Gruppi</span></button>
+      </div>
+    </div>
+
+    <div>
+      <p class="helper-section-title">3 · Consigli pratici</p>
+      <ul class="tips-list">
+        <li>Il filtro <strong>Dal / Al</strong> usa clausole booleane <code>FILTER</code>: restringe le date senza alterare lo score di rilevanza.</li>
+        <li>Il titolo pesa <strong>3×</strong> rispetto al corpo dell'articolo: poche parole mirate bastano per trovare la notizia principale.</li>
+        <li>Clicca su qualsiasi <strong>categoria</strong> nei risultati per esplorare rapidamente altre notizie sullo stesso argomento.</li>
+      </ul>
+    </div>
+  </section>
+
   <div id="info" aria-live="polite"></div>
   <div id="results"></div>
   <div id="pager"></div>
 </main>
 
-<!-- Helper laterale a comparsa (Offcanvas / Sidebar Drawer) -->
-<div id="helper-backdrop" class="helper-backdrop" aria-hidden="true"></div>
-<aside id="helper-drawer" class="helper-drawer" aria-label="Guida alla sintassi di ricerca" aria-hidden="true">
-  <div class="helper-header">
-    <h2>Sintassi di Ricerca</h2>
-    <button id="close-helper" class="helper-close" aria-label="Chiudi guida">&times;</button>
-  </div>
-  <div class="helper-body">
-    <p class="help-intro">Il motore usa <code>SimpleQueryParser</code> con operatore predefinito <strong>AND</strong>. Clicca su un esempio per inserirlo nella barra di ricerca.</p>
-
-    <div class="help-section">
-      <div class="help-section-title">Operatori Booleani</div>
-      
-      <div class="help-item">
-        <div class="help-item-header"><strong>AND implicito (Spazio o +)</strong></div>
-        <p>I documenti devono contenere tutti i termini specificati.</p>
-        <div class="help-code-sample" data-query="governo parlamento">
-          <code>governo parlamento</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-
-      <div class="help-item">
-        <div class="help-item-header"><strong>OR Booleano (|)</strong></div>
-        <p>Almeno uno dei termini deve essere presente nel documento.</p>
-        <div class="help-code-sample" data-query="crisi | accordo">
-          <code>crisi | accordo</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-
-      <div class="help-item">
-        <div class="help-item-header"><strong>NOT Booleano / Esclusione (-)</strong></div>
-        <p>Esclude categoricamente i documenti che contengono il termine.</p>
-        <div class="help-code-sample" data-query="elezioni -sondaggi">
-          <code>elezioni -sondaggi</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="help-section">
-      <div class="help-section-title">Frasi Esatte e Raggruppamento</div>
-
-      <div class="help-item">
-        <div class="help-item-header"><strong>Phrase Query (" ")</strong></div>
-        <p>Cerca la sequenza esatta di parole nell'ordine dato.</p>
-        <div class="help-code-sample" data-query='"presidente della repubblica"'>
-          <code>"presidente della repubblica"</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-
-      <div class="help-item">
-        <div class="help-item-header"><strong>Precedenza Booleana ( )</strong></div>
-        <p>Combina più operatori raggruppando le clausole.</p>
-        <div class="help-code-sample" data-query='(roma | milano) trasporti -sciopero'>
-          <code>(roma | milano) trasporti -sciopero</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="help-section">
-      <div class="help-section-title">Matching Prefisso (Wildcard)</div>
-
-      <div class="help-item">
-        <div class="help-item-header"><strong>Prefisso Termine (*)</strong></div>
-        <p>Trova termini che iniziano con la radice specificata.</p>
-        <div class="help-code-sample" data-query="calc*">
-          <code>calc*</code>
-          <span class="hint">usa ↵</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</aside>
 <script>
 const $ = id => document.getElementById(id);
 let page = 1;
-const itDate = d => d ? d.split('-').reverse().join('/') : '—';  // formato istituzionale dd/MM/yyyy
+const itDate = d => d ? d.split('-').reverse().join('/') : '—';
+
+const MODEL_HINTS = {
+  italian: 'Attivo: BM25 + analyzer italiano — gestisce elisioni, accenti, stopword e stemming leggero (ideale per query tematiche).',
+  plain: 'Attivo: BM25 senza stemming — match esatto su parole e titoli (massima precisione su sigle, nomi propri e titoli seriali).',
+  lmdirichlet: 'Attivo: LM Dirichlet (μ=2000) — modello probabilistico basato sulla distribuzione del corpus.'
+};
+
+function syncModelUI() {
+  const m = $('model').value;
+  $('model-hint').textContent = MODEL_HINTS[m] || '';
+  document.querySelectorAll('.helper-box[data-model]').forEach(box => {
+    box.classList.toggle('active', box.dataset.model === m);
+  });
+}
 
 fetch('/api/stats').then(r => r.json()).then(s => {
   $('stats').textContent = `${s.documents.toLocaleString('it')} notizie · ${itDate(s.first_date)} – ${itDate(s.last_date)} · Lucene ${s.lucene_version}`;
@@ -133,6 +147,7 @@ function readUrl() {
   $('from').value = p.get('date_from') || '';
   $('to').value = p.get('date_to') || '';
   page = +p.get('page') || 1;
+  syncModelUI();
 }
 
 function params() {
@@ -167,7 +182,7 @@ async function run(push = true) {
         meta.append(chip(cat, 'cat', () => { $('q').value = cat; page = 1; run(); scrollTo(0, 0); }));
       });
     }
-    const snip = document.createElement('p'); snip.className = 'snip'; snip.innerHTML = d.snippet; // ES highlighter with encoder=html: text escaped, only <mark> added
+    const snip = document.createElement('p'); snip.className = 'snip'; snip.innerHTML = d.snippet;
     div.append(a, meta, snip); return div;
   }));
   const pages = Math.ceil(data.total / 10), pager = [];
@@ -177,39 +192,43 @@ async function run(push = true) {
   $('pager').replaceChildren(...pager);
 }
 
-$('f').onsubmit = e => { e.preventDefault(); page = 1; run(); };
-addEventListener('popstate', () => { readUrl(); run(false); });
-readUrl(); run(false);
-
-// Gestione dell'helper laterale (Offcanvas drawer)
-const drawer = $('helper-drawer');
-const backdrop = $('helper-backdrop');
-function toggleHelper(open) {
-  drawer.classList.toggle('open', open);
-  backdrop.classList.toggle('open', open);
-  drawer.setAttribute('aria-hidden', String(!open));
-  backdrop.setAttribute('aria-hidden', String(!open));
-  if (open) $('close-helper').focus();
+function toggleHelper(force) {
+  const panel = $('helper-panel');
+  const open = force !== undefined ? force : panel.hidden;
+  panel.hidden = !open;
+  $('helper-btn').setAttribute('aria-expanded', String(open));
 }
-$('open-helper').onclick = () => toggleHelper(true);
-$('close-helper').onclick = () => toggleHelper(false);
-backdrop.onclick = () => toggleHelper(false);
-addEventListener('keydown', e => {
-  if (e.key === 'Escape' && drawer.classList.contains('open')) {
-    toggleHelper(false);
-  }
+
+$('helper-btn').onclick = () => toggleHelper();
+$('helper-close').onclick = () => toggleHelper(false);
+
+$('model').onchange = () => {
+  syncModelUI();
+  if ($('q').value.trim()) { page = 1; run(); }
+};
+
+document.querySelectorAll('.helper-box[data-model]').forEach(box => {
+  const selectModel = () => {
+    $('model').value = box.dataset.model;
+    syncModelUI();
+    if ($('q').value.trim()) { page = 1; run(); }
+  };
+  box.onclick = selectModel;
+  box.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectModel(); } };
 });
 
-// Click sui campioni di codice per compilare ed eseguire istantaneamente la query
-document.querySelectorAll('.help-code-sample').forEach(el => {
-  el.onclick = () => {
-    $('q').value = el.getAttribute('data-query');
+document.querySelectorAll('.try-chip[data-query]').forEach(btn => {
+  btn.onclick = () => {
+    $('q').value = btn.dataset.query;
     page = 1;
-    toggleHelper(false);
     run();
     $('q').focus();
   };
 });
+
+$('f').onsubmit = e => { e.preventDefault(); page = 1; run(); };
+addEventListener('popstate', () => { readUrl(); run(false); });
+readUrl(); run(false);
 </script>
 </body>
 </html>
