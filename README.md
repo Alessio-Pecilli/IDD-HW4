@@ -45,7 +45,16 @@ dump .tar.gz ──► WikinewsIndexer ──► indice Lucene (data/index) ◄�
 - Ranking: `BM25Similarity` (default di Lucene) oppure `LMDirichletSimilarity` (μ = 2000), su due `IndexSearcher` dello stesso indice.
 - Snippet: `UnifiedHighlighter` con `DefaultPassageFormatter` che fa l'escape dell'HTML e aggiunge solo i tag `<mark>`.
 
-## Installazione
+## Avvio rapido (Windows)
+
+Dopo aver scaricato il dump in `data/itwikinews.json.tar.gz`, puoi avviare l'intero sistema con un solo comando (o doppio clic):
+
+- **Prompt dei comandi / Esplora file:** `start.bat`
+- **PowerShell:** `.\start.ps1`
+
+Lo script verifica automaticamente la presenza del dump, compila `target/wikinews-search.jar` se mancante, costruisce l'indice Lucene in `data/index` alla prima esecuzione, avvia il server su `http://localhost:8000` e apre il browser.
+
+## Installazione manuale
 
 Requisiti: **JDK 25 o superiore**. Maven non serve: il repository include il Maven Wrapper (`mvnw`).
 
@@ -117,7 +126,7 @@ Parametri non validi restituiscono `422` con un campo `detail` che spiega l'erro
 | End-to-end | `WebServerTest` | richieste HTTP reali: pagina web, statistiche, validazione degli input (422), query ostili (sintassi rotta, tentativi di injection, `<script>`) che non devono mai causare errori, snippet escapati |
 | Valutazione | `Evaluator` | efficacia e latenza sull'indice reale |
 
-I 29 test JUnit 5 partono con `./mvnw test` (o durante `./mvnw package`) e non richiedono il dump.
+I 31 test JUnit 5 partono con `./mvnw test` (o durante `./mvnw package`) e non richiedono il dump.
 
 ### Valutazione sperimentale
 
@@ -162,8 +171,10 @@ src/main/java/it/uniroma3/idd/wikinews/
   WebServer.java         pagina web e API JSON (com.sun.net.httpserver)
   Evaluator.java         valutazione sperimentale
 src/main/resources/static/index.html   interfaccia web (HTML + JS, senza build)
+src/main/resources/static/style.css    fogli di stile dell'interfaccia web
 src/test/java/...       test JUnit 5 e mini-dump sintetico
 eval/results.md          risultati dell'ultima valutazione
+start.bat / start.ps1  script di avvio automatico per Windows (build, index, serve)
 ```
 
 ## Riferimenti
